@@ -1,7 +1,6 @@
+#include <flipper.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <flipper/usart.h>
-#include <flipper/gpio.h>
 
 extern int errno;
 extern int _end;
@@ -44,8 +43,6 @@ extern int _lseek(int file, int ptr, int dir) {
 extern int _read(int file, char *ptr, int len) {
 	return 0 ;
 }
-
-extern void uart0_put(char c);
 
 extern int _write(int file, char *ptr, int len) {
 	for (int i = 0; i < len; i ++, ptr ++) {
