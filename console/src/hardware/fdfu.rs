@@ -16,7 +16,7 @@ use xmodem::Xmodem;
 use failure::{Fail, Error};
 
 use flipper;
-use flipper::fsm::{uart0, gpio};
+use flipper::api::{uart0, gpio};
 
 #[derive(Debug, Fail)]
 enum FdfuError {

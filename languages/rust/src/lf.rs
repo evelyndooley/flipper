@@ -12,7 +12,11 @@ use libc::{c_void, c_int, c_char};
 use std::ops::Deref;
 use std::ptr;
 use std::ffi::CString;
-use ::{_lf_device, lf_get_current_device};
+
+pub type _lf_device = *const c_void;
+
+type _lf_function_index = u8;
+type _fmr_return = u32;
 
 /// Types transmitted over FMR are encoded in a u8.
 type _lf_type = libc::uint8_t;
@@ -55,6 +59,7 @@ mod libflipper {
     use super::*;
     #[link(name = "flipper")]
     extern {
+        pub(crate) fn lf_get_current_device() -> _lf_device;
         pub(crate) fn lf_ll_append(ll: *mut *mut _lf_ll, item: *const c_void, destructor: *const c_void) -> c_int;
         pub(crate) fn lf_invoke(device: _lf_device, module: *const c_char, function: _lf_index, ret: u8, args: *const _lf_ll) -> _lf_value;
         pub(crate) fn lf_push(device: _lf_device, module: *const c_char, function: _lf_index, source: *const c_void, length: u32, args: *const _lf_ll) -> _lf_value;
@@ -208,6 +213,12 @@ impl From<LfReturn> for u64 {
     fn from(ret: LfReturn) -> Self { ret.0 as u64 }
 }
 
+pub fn current_device() -> _lf_device {
+    unsafe {
+        libflipper::lf_get_current_device()
+    }
+}
+
 /// Invokes a remote function call to a Flipper device.
 ///
 /// All functions belong to a module, whether it's a Standard Module or a
@@ -244,7 +255,7 @@ impl From<LfReturn> for u64 {
 /// let flipper = Flipper::attach();
 /// let output: u8 = invoke(&flipper, &module, 0, args);
 /// ```
-pub fn invoke<T: LfReturnable>(module: &str, index: u8, args: Option<Args>) -> T {
+pub fn invoke<T: LfReturnable>(device: _lf_device, module: &str, index: u8, args: Option<Args>) -> T {
     unsafe {
         let mut arglist: *mut _lf_ll = ptr::null_mut();
         args.map(|args|
@@ -252,7 +263,7 @@ pub fn invoke<T: LfReturnable>(module: &str, index: u8, args: Option<Args>) -> T
                 libflipper::lf_ll_append(&mut arglist, &arg.0 as *const _lf_arg as *const c_void, ptr::null());
             }
         );
-        let ret = libflipper::lf_invoke(lf_get_current_device(), CString::new(module).unwrap().as_ptr(), index, T::lf_type(), arglist);
+        let ret = libflipper::lf_invoke(device, CString::new(module).unwrap().as_ptr(), index, T::lf_type(), arglist);
         T::from(LfReturn(ret))
     }
 }
@@ -263,7 +274,7 @@ pub fn invoke<T: LfReturnable>(module: &str, index: u8, args: Option<Args>) -> T
 /// This is currently only used for certain Standard Modules such as uart0
 /// for sending and receiving data over a bus. However, it may be expanded
 /// in the future to support user module functions as well.
-pub fn push<T: LfReturnable>(module: &str, index: u8, data: &[u8], args: Option<Args>) -> T {
+pub fn push<T: LfReturnable>(device: _lf_device, module: &str, index: u8, data: &[u8], args: Option<Args>) -> T {
     unsafe {
         let mut arglist: *mut _lf_ll = ptr::null_mut();
         args.map(|args|
@@ -271,7 +282,7 @@ pub fn push<T: LfReturnable>(module: &str, index: u8, data: &[u8], args: Option<
                 libflipper::lf_ll_append(&mut arglist, &arg.0 as *const _lf_arg as *const c_void, ptr::null());
             }
         );
-        let ret = libflipper::lf_push(lf_get_current_device(), CString::new(module).unwrap().as_ptr(), index, data.as_ptr() as *const c_void, data.len() as u32, arglist);
+        let ret = libflipper::lf_push(device, CString::new(module).unwrap().as_ptr(), index, data.as_ptr() as *const c_void, data.len() as u32, arglist);
         T::from(LfReturn(ret))
     }
 }
@@ -282,7 +293,7 @@ pub fn push<T: LfReturnable>(module: &str, index: u8, data: &[u8], args: Option<
 /// This is currently only used for certain Standard Modules such as uart0
 /// for sending and receiving data over a bus. However, it may be expanded
 /// in the future to support user module functions as well.
-pub fn pull<T: LfReturnable>(module: &str, index: u8, buffer: &mut [u8], args: Option<Args>) -> T {
+pub fn pull<T: LfReturnable>(device: _lf_device, module: &str, index: u8, buffer: &mut [u8], args: Option<Args>) -> T {
     unsafe {
         let mut arglist: *mut _lf_ll = ptr::null_mut();
         args.map(|args|
@@ -290,7 +301,7 @@ pub fn pull<T: LfReturnable>(module: &str, index: u8, buffer: &mut [u8], args: O
                 libflipper::lf_ll_append(&mut arglist, &arg.0 as *const _lf_arg as *const c_void, ptr::null());
             }
         );
-        let ret = libflipper::lf_pull(lf_get_current_device(), CString::new(module).unwrap().as_ptr(), index, buffer.as_mut_ptr() as *mut c_void, buffer.len() as u32, arglist);
+        let ret = libflipper::lf_pull(device, CString::new(module).unwrap().as_ptr(), index, buffer.as_mut_ptr() as *mut c_void, buffer.len() as u32, arglist);
         T::from(LfReturn(ret))
     }
 }
