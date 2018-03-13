@@ -18,9 +18,9 @@
 
 use flipper;
 use console::CliError;
-use flipper::StandardModule;
 use clap::{App, AppSettings, Arg, ArgMatches};
 use failure::Error;
+use flipper::fsm::led::Led;
 
 pub fn make_subcommand<'a, 'b>() -> App<'a, 'b> {
     App::new("module")
@@ -116,9 +116,8 @@ pub mod led {
         let green = args.value_of("green").unwrap().parse::<u8>().unwrap();
         let blue = args.value_of("blue").unwrap().parse::<u8>().unwrap();
 
-        let flipper = flipper::Flipper::attach();
-        let led = flipper::fsm::led::Led::new(&flipper);
-        led.rgb(red, green, blue);
+        let flipper = flipper::Flipper::attach_hostname("localhost");
+        Led::rgb(red, green, blue);
         Ok(())
     }
 }

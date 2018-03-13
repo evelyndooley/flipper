@@ -1,25 +1,7 @@
 #![allow(non_upper_case_globals)]
 
+use lf;
 use std::io::{Read, Write, Result};
-
-use ::{
-    Flipper,
-    ModuleFFI,
-    StandardModuleFFI,
-    _lf_module,
-};
-
-use fmr::{
-    Args,
-    lf_invoke,
-    lf_push,
-    lf_pull,
-};
-
-#[link(name = "flipper")]
-extern {
-    static _uart0: _lf_module;
-}
 
 pub enum UartBaud {
     FMR,
@@ -35,45 +17,42 @@ impl UartBaud {
     }
 }
 
-pub struct Uart0<'a> {
-    flipper: &'a Flipper,
-    module: ModuleFFI,
+pub struct Uart0 {
+
 }
 
-impl<'a> Uart0<'a> {
-    pub fn new(flipper: &'a Flipper) -> Self {
-        let module = unsafe { StandardModuleFFI { module_meta: &_uart0 } };
-        let module = ModuleFFI::Standard(module);
-        Uart0 { flipper, module }
+impl Uart0 {
+    pub fn new() -> Self {
+        Uart0 { }
     }
 
     /// Configures the Uart0 module with a given baud rate and
     /// interrupts enabled flag.
     pub fn configure(&self, baud: &UartBaud, interrupts: bool) {
-        let args = Args::new()
+        let args = lf::Args::new()
             .append(baud.to_baud())
             .append(if interrupts { 1u8 } else { 0u8 });
-        lf_invoke(self.flipper, &self.module, 0, args)
+        lf::invoke("uart0", 0, Some(args))
     }
 
     /// Indicates whether the Uart0 bus is ready to read or write.
     pub fn ready(&self) -> bool {
-        let ret: u8 = lf_invoke(self.flipper, &self.module, 1, Args::new());
+        let ret: u8 = lf::invoke("uart0", 1, None);
         ret != 0
     }
 }
 
-impl<'a> Write for Uart0<'a> {
+impl Write for Uart0 {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        lf_push::<()>(self.flipper, &self.module, 2, buf, Args::new());
+        lf::push::<()>("uart0", 2, buf, None);
         Ok(buf.len())
     }
     fn flush(&mut self) -> Result<()> { Ok(()) }
 }
 
-impl<'a> Read for Uart0<'a> {
+impl Read for Uart0 {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        lf_pull::<()>(self.flipper, &self.module, 3, buf, Args::new());
+        lf::pull::<()>("uart0", 3, buf, None);
         Ok(buf.len())
     }
 }
