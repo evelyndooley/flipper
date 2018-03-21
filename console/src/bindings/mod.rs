@@ -190,41 +190,31 @@ pub struct Function {
 /// A fully formed Flipper module which can have bindings generated for it.
 #[derive(Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct Module {
-    name: String,
-    description: String,
-    functions: Vec<Function>,
+    pub name: String,
+    pub description: String,
+    pub functions: Vec<Function>,
 }
 
 impl Module {
     /// Parse Flipper module metadata from a debug-enabled binary.
-    pub fn parse(name: String, description: String, binary: &[u8]) -> Result<Self, Error> {
-        let functions = dwarf::parse(binary)?;
-        let range = read_section_address(binary, ".lf.funcs")?;
-        let functions: Vec<_> = functions.into_iter().filter(|f| range.start <= f.address && f.address < range.end).collect();
+    pub fn parse(binary: &[u8]) -> Result<Vec<Self>, Error> {
+        let bin = object::File::parse(binary).unwrap();
+        let mut modules = Vec::new();
 
-        Ok(Module {
-            name,
-            description,
-            functions,
-        })
-    }
-}
-
-fn read_section_address(data: &[u8], section_name: &str) -> Result<Range<u64>, Error> {
-    let bin = object::File::parse(data)
-        .map_err(|_| BindingError::SectionReadError(section_name.to_owned()))?;
-
-    for section in bin.sections() {
-        if let Some(name) = section.name() {
-            if name == section_name {
-                let address = section.address();
-                let size = section.size();
-                return Ok(address..address + size);
+        for section in bin.sections() {
+            if let Some(sec_name) = section.name() {
+                if sec_name.starts_with(".lf.module.") {
+                    let name = String::from(sec_name.split(".lf.module.").collect::<Vec<_>>()[1]);
+                    println!("Found module {:?}", name);
+                    let range = section.address() .. section.address() + section.size();
+                    let functions = dwarf::parse(&range, binary)?;
+                    modules.push(Module { name: name, description: "description".to_owned(), functions: functions });
+                }
             }
         }
-    }
 
-    Err(BindingError::SectionReadError(section_name.to_owned()).into())
+        Ok(modules)
+    }
 }
 
 #[cfg(test)]

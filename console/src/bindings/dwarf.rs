@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::ops::{
     Deref,
     DerefMut,
+    Range
 };
 
 use failure::Error;
@@ -403,7 +404,7 @@ impl DwarfParser {
         }
     }
 
-    fn step<'a, R: Reader>(&mut self, event: Event, entry: &'a DebuggingInformationEntry<R, R::Offset>, strings: &'a DebugStr<R>) -> Result<(), Error> {
+    fn step<'a, R: Reader>(&mut self, range: &Range<u64>, event: Event, entry: &'a DebuggingInformationEntry<R, R::Offset>, strings: &'a DebugStr<R>) -> Result<(), Error> {
         let state = match (self.state.take().unwrap(), event) {
             // If we were searching for a subprogram and have just found one,
             // begin reading the subprogram, noting its depth so we know when
@@ -420,9 +421,11 @@ impl DwarfParser {
                 func.parameters.push(param);
                 State::Read { func, dep }
             }
+
             // If we were reading one subprogram but stepped up to a new one,
             // save the previous function we built and begin a new one.
             (State::Read { func, .. }, Event::NewSubprogram(dep)) => {
+                println!("Weird step 1 called");
                 self.subprograms.push(func);
                 let func = parse_subprogram(entry, strings)?;
                 State::Read { func, dep }
@@ -432,12 +435,14 @@ impl DwarfParser {
             // and begin searching for the next subprogram.
             (State::Read { func, dep, .. }, Event::Step(depth)) => {
                 if depth < dep {
+                    println!("Weird step 2 called");
                     self.subprograms.push(func);
                     State::Search
                 } else {
                     State::Read { func, dep }
                 }
             }
+
             (state, _) => state,
         };
         self.state.get_or_insert(state);
@@ -495,7 +500,7 @@ impl TypeRegistry {
 }
 
 /// Parses the buffer of a DWARF binary to extract the debugging information.
-pub fn parse(buffer: &[u8]) -> Result<Vec<Function>, Error> {
+pub fn parse(range: &Range<u64>, buffer: &[u8]) -> Result<Vec<Function>, Error> {
     let bin = object::File::parse(buffer)
         .map_err(|_| BindingError::DwarfReadError("binary file".to_owned()))?;
 
@@ -532,6 +537,12 @@ pub fn parse(buffer: &[u8]) -> Result<Vec<Function>, Error> {
         while let Some((delta, entry)) = entries.next_dfs()? {
             depth += delta;
             match (depth, entry.tag()) {
+                (depth, gimli::DW_TAG_subprogram) => {
+                    parser.step(&range, Event::NewSubprogram(depth), &entry, &debug_strings)?;
+                },
+                (_, gimli::DW_TAG_formal_parameter) => {
+                    parser.step(&range, Event::NewParameter, &entry, &debug_strings)?;
+                },
                 (_, gimli::DW_TAG_base_type) => {
                     let (offset, typ) = parse_base_type(&entry, &debug_strings)?;
                     resolved_types.insert(offset, Rc::new(typ));
@@ -546,13 +557,7 @@ pub fn parse(buffer: &[u8]) -> Result<Vec<Function>, Error> {
                     let offset = alias.offset;
                     unresolved_aliases.insert(offset, alias);
                 },
-                (_, gimli::DW_TAG_formal_parameter) => {
-                    parser.step(Event::NewParameter, &entry, &debug_strings)?;
-                },
-                (depth, gimli::DW_TAG_subprogram) => {
-                    parser.step(Event::NewSubprogram(depth), &entry, &debug_strings)?;
-                },
-                (depth, _) => parser.step(Event::Step(depth), &entry, &debug_strings)?,
+                (depth, _) => parser.step(&range, Event::Step(depth), &entry, &debug_strings)?,
             }
         }
         parser.step_zero();

@@ -186,7 +186,7 @@ fn fmr_expansion_helper(h: &Helper, _: &Handlebars, rc: &mut RenderContext) -> R
 
 /// Configures handlebars, serializes the given `CModule`, and writes it
 /// to the given output.
-pub fn generate_module<W: Write>(module: Module, out: &mut W) -> Result<(), Error> {
+pub fn generate_module<W: Write>(module: &Module, out: &mut W) -> Result<(), Error> {
     let mut reg = Handlebars::new();
     reg.register_helper("param_expansion", Box::new(param_helper));
     reg.register_helper("struct_expansion", Box::new(struct_helper));
@@ -197,11 +197,11 @@ pub fn generate_module<W: Write>(module: Module, out: &mut W) -> Result<(), Erro
     reg.register_template_source("c", &mut template)
         .map_err(|_| GeneratorError::CRenderError("missing or malformed template file 'c.hbs'".to_owned()))?;
 
-    let module: CModule = module.into();
-
-    let _ = write!(out, "{}", reg.render("c", &module)
-        .map_err(|e| GeneratorError::CRenderError(e.desc))?
-    );
+    // let module: CModule = module.into();
+    //
+    // let _ = write!(out, "{}", reg.render("c", &module)
+    //     .map_err(|e| GeneratorError::CRenderError(e.desc))?
+    // );
 
     Ok(())
 }
