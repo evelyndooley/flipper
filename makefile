@@ -53,6 +53,7 @@ ARM_INC_DIRS := carbon/include        \
 				$(ASF_INC)
 
 ARM_SRC_DIRS := carbon/atsam4s        \
+				carbon/src            \
                 kernel/arch/armv7     \
                 runtime/arch/armv7    \
                 runtime/src
@@ -96,6 +97,7 @@ AVR_INC_DIRS := carbon/include        \
                 runtime/include
 
 AVR_SRC_DIRS := carbon/atmegau2       \
+                carbon/src            \
                 runtime/arch/avr8     \
                 runtime/src
 
@@ -112,7 +114,8 @@ AVR_CFLAGS   := -std=c99              \
                 -D__no_err_str__      \
                 -DATMEGAU2
 
-AVR_LDFLAGS  := -mmcu=atmega32u2
+AVR_LDFLAGS  := -mmcu=atmega32u2 \
+				-Wl,--gc-sections
 
 atmegau2: $(AVR_TARGET).hex
 
@@ -136,17 +139,11 @@ X86_INC_DIRS := carbon/include          \
                 runtime/include
 
 X86_SRC_DIRS := carbon/hal              \
+                carbon/src              \
                 library/src             \
                 runtime/arch/x64        \
                 library/platforms/posix \
-                runtime/src             \
-				$(BUILD)/carbon
-
--include $(BUILD)/carbon.mk
-
-$(BUILD)/carbon.mk: atsam4s.elf | $(BUILD)/carbon/.dir
-	$(_v)python3 utils/fdwarf/fdwarf.py $(BUILD)/atsam4s/atsam4s.elf c $(BUILD)/carbon
-	$(_v)echo "HAL_DIRS = $(BUILD)/carbon" > $(BUILD)/carbon.mk
+                runtime/src
 
 X86_CFLAGS   := -std=gnu99              \
                 -g                      \
