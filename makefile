@@ -73,7 +73,8 @@ ARM_CFLAGS   := -std=c99              \
                 -DATSAM4S             \
                 -D__SAM4S16B__
 
-ARM_LDFLAGS  := -nostartfiles                    \
+ARM_LDFLAGS  := -nostartfiles         \
+                -Wl,--gc-sections     \
                 -Wl,-T carbon/atsam4s/sam4s16.ld
 
 atsam4s: $(ARM_TARGET).bin
