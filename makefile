@@ -123,7 +123,7 @@ atmegau2: $(AVR_TARGET).hex
 .PHONY: install-atmegau2
 
 install-atmegau2: atmegau2
-	$(_v)dfu-programmer atmega32u2 erase
+	$(_v)dfu-programmer atmega32u2 erase --force
 	$(_v)dfu-programmer atmega32u2 flash $(BUILD)/$(AVR_TARGET)/$(AVR_TARGET).hex
 	$(_v)dfu-programmer atmega32u2 launch --no-reset
 
