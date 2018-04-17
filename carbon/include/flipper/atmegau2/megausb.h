@@ -61,11 +61,11 @@ extern const struct descriptor {
 } PROGMEM descriptors[NUM_DESC_LIST];
 
 
-int8_t megausb_interrupt_receive(void *destination, size_t length);
-int8_t megausb_interrupt_transmit(void *source, size_t length);
+int8_t megausb_interrupt_receive(void *dst, size_t length);
+int8_t megausb_interrupt_transmit(void *src, size_t length);
 
-int8_t megausb_bulk_receive(void *destination, size_t length);
-int8_t megausb_bulk_transmit(void *source, size_t length);
+int8_t megausb_bulk_receive(void *dst, size_t length);
+int8_t megausb_bulk_transmit(void *src, size_t length);
 
 int usb_debug_putchar(uint8_t c);
 
